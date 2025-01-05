@@ -1,0 +1,181 @@
+---
+title: "A Comparative Analysis of Poverty and Inequality: Developed vs. Developing Nations"
+author: "Harsh Bajpai"
+date: "`2024-12-10`"
+output: html_document
+---
+
+Description: This analysis aims to look at Poverty and Inequality situation over the years among four developed (United States, Germany, Japan, Australia) and four developing countries (India, Brazil, South Africa, Nigeria). Specifically, it examines metrics such as the Gini coefficient (inequality), poverty headcount, and poverty severity across selected developed and developing countries. Through visualization and statistical insights, this analysis wants to highlight the important trends and disparities that are present in developed and developing countries.
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+pip <- read.csv("C:/Users/Lenovo/Desktop/pip.csv")
+```
+
+Filtering the data to include <br>
+Developed Countries: United States, Germany, Japan, Australia <br>
+Developing Countries: India, Brazil, South Africa, Nigeria.<br>
+Corresponding variables - gini coefficient, poverty headcount and poverty severity
+
+```{r, warning=FALSE, message=FALSE}
+countries <- c("United States", "Germany", "Japan", "Australia", 
+                        "India", "Brazil", "South Africa", "Nigeria")
+data <- pip %>%
+  filter(country_name %in% countries) %>%
+  select(country_name, reporting_year, gini, headcount, poverty_severity) %>%
+  mutate(
+    development_status = ifelse(country_name %in% c("United States", "Germany", "Japan", "Australia"), "Developed", "Developing")
+  )
+
+country_mapping <- data.frame(
+  country_name = c("United States", "Germany", "Japan", "Australia", "India", "Brazil", "South Africa", "Nigeria"),
+  long = c(-98.35, 10.45, 138.25, 133.78, 78.96, -51.93, 22.94, 8.68),
+  lat = c(39.50, 51.16, 36.20, -25.27, 20.59, -14.24, -30.56, 9.08)
+)
+```
+
+
+Generate descriptive statistics for selected countries, grouped by their development status.<br>
+Average Gini Index <br>
+Average Headcount<br>
+Average Poverty Severity
+
+```{r, warning=FALSE, message=FALSE}
+summary_table <- data %>%
+  group_by(country_name, development_status) %>%
+  summarize(
+    avg_gini = mean(gini, na.rm = TRUE),
+    avg_headcount = mean(headcount, na.rm = TRUE),
+    avg_poverty_severity = mean(poverty_severity, na.rm = TRUE)
+  ) %>%
+  arrange(desc(avg_gini))
+
+print(summary_table)
+```
+
+
+### Visualization 1: Average Gini Index by country, categorized by development status.
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(summary_table, aes(x = reorder(country_name, avg_gini), y = avg_gini, fill = development_status)) +
+  geom_bar(stat = "identity", width = 0.7, show.legend = TRUE) +
+  coord_flip() +
+  labs(
+    title = "Average Gini Index by Country",
+    x = "Country",
+    y = "Average Gini Index",
+    fill = "Development Status"
+  ) +
+  theme_minimal()
+```
+
+### Visualization 2: Distribution of the Gini index for developed vs. developing nations.
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(data, aes(x = development_status, y = gini, fill = development_status)) +
+  geom_boxplot(alpha = 0.6, show.legend = FALSE) +
+  labs(
+    title = "Gini Index Distribution by Development Status",
+    x = "Development Status",
+    y = "Gini Index"
+  ) +
+  theme_minimal()
+```
+
+### Visualization 3: Trends in poverty headcount over time for each country
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(data, aes(x = reporting_year, y = headcount, color = country_name)) +
+  geom_line(size = 1) +
+  facet_wrap(~country_name) +
+  labs(
+    title = "Poverty Headcount Trends Over Time by Country",
+    x = "Year",
+    y = "Poverty Headcount"
+  ) +
+  theme_minimal()
+```
+
+
+### Visualization 4: Average Poverty Severity by country, categorized by development status.
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(summary_table, aes(x = reorder(country_name, avg_poverty_severity), y = avg_poverty_severity, fill = development_status)) +
+  geom_bar(stat = "identity", width = 0.7, show.legend = TRUE) +
+  coord_flip() +
+  labs(
+    title = "Average Poverty Severity by Country",
+    x = "Country",
+    y = "Average Poverty Severity",
+    fill = "Development Status"
+  ) +
+  theme_minimal()
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+bubble_data <- data %>%
+  group_by(country_name) %>%
+  summarize(
+    avg_gini = mean(gini, na.rm = TRUE),
+    avg_poverty_severity = mean(poverty_severity, na.rm = TRUE)
+  ) %>%
+  left_join(country_mapping, by = "country_name")
+
+world <- map_data("world")
+```
+
+### Visualization 5: A geographical representation of the Gini coefficient
+
+```{r, warning=FALSE, message=FALSE}
+ggplot() +
+  geom_polygon(data = world, aes(x = long, y = lat, group = group), fill = "lightgrey", color = "white") +
+  geom_point(data = bubble_data, aes(x = long, y = lat, size = avg_gini, color = avg_gini), alpha = 0.7) +
+  scale_size_continuous(name = "Gini Coefficient") +
+  scale_color_gradient(low = "lightblue", high = "darkblue", name = "Gini Coefficient") +
+  labs(
+    title = "World Map: Gini Coefficient",
+    x = "Longitude",
+    y = "Latitude"
+  ) +
+  theme_minimal()
+```
+
+### Visualization 6: A geographical representation of Poverty Severity
+
+
+
+```{r, warning=FALSE, message=FALSE}
+ggplot() +
+  geom_polygon(data = world, aes(x = long, y = lat, group = group), fill = "lightgrey", color = "white") +
+  geom_point(data = bubble_data, aes(x = long, y = lat, size = avg_poverty_severity, color = avg_poverty_severity), alpha = 0.7) +
+  scale_size_continuous(name = "Poverty Severity") +
+  scale_color_gradient(low = "lightgreen", high = "darkgreen", name = "Poverty Severity") +
+  labs(
+    title = "World Map: Poverty Severity",
+    x = "Longitude",
+    y = "Latitude"
+  ) +
+  theme_minimal()
+```
+
+
+### Summary:
+1. Developed nations generally have lower Gini coefficients, indicating lesser income inequality.<br>
+Developing nations, such as Brazil and South Africa, show higher Gini values, reflecting significant disparities in wealth distribution. <br>
+2. Developing countries show a higher proportion of people below the poverty line compared to developed nations.<br>
+India and Nigeria, for example, report significant poverty headcounts over the years.
+3. Developing countries not only have a higher poverty headcount but also experience more severe poverty conditions.<br>
+4. Developed countries maintain relatively stable metrics, while developing nations show fluctuations and gradual improvements in poverty indices over time.<br>
+
+
+
+### Analysis & Interpretation:
+The study shows how different developed and developing countries are when it comes to poverty and injustice. Stronger economies, good government, and well-established social safety nets are positive factors for developed countries. These things make society and the economy more stable and reduce inequality. <br>
+In contrast, developing countries face systemic problems like limited access to healthcare, education, and job chances, which keep people in poverty and make the wealth gap bigger. Regional differences in developing countries make the differences even bigger. For example, rural and underserved areas often don't get enough help. <br>
+To close the gap, these results make it even more important to quickly put in place focused policy interventions, such as fair resource allocation, investments in human capital, and support for long-term economic growth. <br>
+To solve these problems and encourage sustainable growth for everyone, we need to work together on a global scale, including sharing information and giving each other aid.
+
